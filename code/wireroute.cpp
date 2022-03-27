@@ -479,6 +479,7 @@ static void routing(wire_t *wires, cost_t *costs, int dim_x, int dim_y,
                     int num_wires, int N, int num_threads){
     // loop iterations for improvement (inside which each wire is checked)
     //printf("ENTERING ROUTING...\n");
+    //float P = 0.1;
     for (int i = 0; i < N; i++){
         // loop each wire
 
@@ -500,7 +501,11 @@ static void routing(wire_t *wires, cost_t *costs, int dim_x, int dim_y,
             // printf("original cost: %d\n", ori_cost);
 
             wire_t cur_wire = wires[wid];
-            int route_len = 1+abs(cur_wire.endx - cur_wire.startx) + abs(cur_wire.endy - cur_wire.starty);
+            int total_routes = abs(cur_wire.endx - cur_wire.startx) + abs(cur_wire.endy - cur_wire.starty);
+            int route_len = 1 + total_routes;
+            wire_t *all_possible = (wire_t*)malloc(total_routes * sizeof(wire_t));
+            wire_t *next_possible = &all_possible[0];
+
             int min_cost = ori_cost;
             wire_t best_route;
 
@@ -553,6 +558,10 @@ static void routing(wire_t *wires, cost_t *costs, int dim_x, int dim_y,
                             new_w.bend_2 = false;
                         }
 
+                        //SHARED FOR every route: all_possible
+                        *next_possible = new_w;
+                        next_possible = next_possible + 1;
+
                         int cur_cost;
                         #pragma omp critical
                         {
@@ -596,6 +605,10 @@ static void routing(wire_t *wires, cost_t *costs, int dim_x, int dim_y,
                         } else{
                             new_w.bend_2 = false;
                         }
+
+                        //SHARED FOR every route: all_possible
+                        *next_possible = new_w;
+                        next_possible = next_possible + 1;
 
                         #pragma omp critical
                         {   
@@ -644,6 +657,10 @@ static void routing(wire_t *wires, cost_t *costs, int dim_x, int dim_y,
                             new_w.bend_2 = false;
                         }
 
+                        //SHARED FOR every route: all_possible
+                        *next_possible = new_w;
+                        next_possible = next_possible + 1;
+
                         #pragma omp critical
                         {
                             //print_cost(dim_x, dim_y, costs);
@@ -685,6 +702,10 @@ static void routing(wire_t *wires, cost_t *costs, int dim_x, int dim_y,
                             new_w.bend_2 = false;
                         }
 
+                        //SHARED FOR every route: all_possible
+                        *next_possible = new_w;
+                        next_possible = next_possible + 1;
+
                         #pragma omp critical
                         {
                             //print_cost(dim_x, dim_y, costs);
@@ -699,20 +720,18 @@ static void routing(wire_t *wires, cost_t *costs, int dim_x, int dim_y,
                         }
                     }
                 }
+            }
 
-            // update the wire contents and costs
-            // CRITICAL SECTION
-            //#pragma omp critical
-            //{
-                // update the route, needs synchronize
-                // add the cost of new route, updates costs, needs synchronize
-                
-                //}
-            //} 
+            int r = rand() % 10 + 1;
+            if (r != 1){
+                //randomly choose one from possibility array
+                int choose = rand() % total_routes + 1;
+                best_route = all_possible[choose-1];
             }
 
             #pragma omp critical
             {
+                
                 wires[wid] = best_route;
                 add_cost(wires[wid], costs, dim_x, dim_y);
                 // printf("BEST ROUTE FOUND: \n");
@@ -721,6 +740,8 @@ static void routing(wire_t *wires, cost_t *costs, int dim_x, int dim_y,
                 // print_cost(dim_x, dim_y, costs);
                 // printf("EXISTING THIS THREAD");
             }
+
+            free(all_possible);
         }
     }
 }
