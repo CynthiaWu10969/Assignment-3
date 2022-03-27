@@ -9,6 +9,20 @@
 #include <omp.h>
 
 typedef struct { /* Define the data structure for wire here */
+    int startx;
+    int starty;
+    int endx;
+    int endy;
+
+    bool bend_1;
+    bool bend_2;
+
+    int bend_1x;
+    int bend_1y;
+    int bend_2x;
+    int bend_2y;
+
+    int total_cost;
 } wire_t;
 
 typedef int cost_t;
